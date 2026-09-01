@@ -63,18 +63,18 @@ jobs:
           test -n "$file"
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
-      - name: Build prototype Regular
+      - name: Build prototype Regular v2
         run: |
           node tools/composite-prototype/build.mjs \
             --sarasa "${{ steps.sarasa.outputs.file }}" \
             --hack .prototype/hack/Hack-Regular.ttf \
-            --output .prototype/out/CompositeCodeJPProto-Regular.ttf
+            --output .prototype/out/CompositeCodeJPProtoV2-Regular.ttf
 
       - name: Write provenance
         shell: bash
         run: |
           cat > .prototype/out/PROVENANCE.md <<'EOF'
-          # Composite Code JP Prototype
+          # Composite Code JP Prototype V2
 
           Temporary internal family name for evaluation only; not the final product name.
 
@@ -82,7 +82,10 @@ jobs:
           - Basic Latin donor: Hack 3.003 Regular
           - Replaced range: U+0020..U+007E
           - Cell metric: inherited from Sarasa Mono J and validated at 1:2 half/full width
-          - Hack geometry: HackGen reference scaling (88% X, 97% Y at 540/1024), converted to Sarasa's cell width
+          - Hack base geometry: HackGen reference scaling (88% X, 97% Y at 540/1024), converted to Sarasa's cell width
+          - V2 Latin optical scale: +3%, advance widths unchanged
+          - V2 dotted zero: approximately 120 x 120 font units, geometrically centered
+          - Iosevka Latin variants/ligatures and OpenType `zero` alternate disabled; CJK features retained
 
           See repository licenses and LICENSE-Hack.md for licensing notices.
           EOF
@@ -90,7 +93,7 @@ jobs:
       - name: Upload prototype
         uses: actions/upload-artifact@v4
         with:
-          name: composite-code-jp-prototype-regular
+          name: composite-code-jp-prototype-v2-regular
           path: .prototype/out/
           if-no-files-found: error
           retention-days: 14
