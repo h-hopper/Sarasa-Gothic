@@ -11,13 +11,13 @@ Build a Japanese programming font with:
 - HackGen-derived sizing/legibility logic where it materially improves coding use
 - strict half-width : full-width cell ratio of **1:2**
 
-The current milestone is deliberately limited to **Regular**.
+The current milestone contains **Regular and Bold**.
 
 ## Prototype strategy
 
-The prototype post-processes the official **Sarasa Mono J 1.0.41 unhinted Regular** TTF rather than rebuilding the complete Sarasa family.
+The prototype post-processes the official **Sarasa Mono J 1.0.41 unhinted** TTFs rather than rebuilding the complete Sarasa family.
 
-This keeps the Japanese/CJK side unchanged while making the Latin experiment small and reversible.
+This keeps the Japanese/CJK side unchanged while making the Latin experiment small and reversible. Regular uses Sarasa Mono J Regular + Hack Regular; Bold uses Sarasa Mono J Bold + Hack Bold.
 
 For every Basic Latin glyph U+0020..U+007E:
 
@@ -37,9 +37,7 @@ For every Basic Latin glyph U+0020..U+007E:
 7. Keep Sarasa's vertical metrics.
 8. Force the advance width to Sarasa's half-width cell.
 
-The builder refuses to continue unless the Sarasa source already satisfies full-width = 2 × half-width.
-After serialization it re-opens the generated font and validates the ratio again.
-It also validates the size and center position of the U+0030 dot.
+The builder refuses to continue unless the Sarasa source already satisfies full-width = 2 × half-width. After serialization it re-opens the generated font and validates the ratio again. It also validates the size and center position of the U+0030 dot.
 
 ## V3 legibility corrections
 
@@ -75,15 +73,30 @@ No other Japanese glyphs are modified in v3. In particular, dakuten/handakuten, 
 
 ## Dotted zero rationale
 
-The first dotted-zero experiment used an excessively small round dot and could become faint at 12–16 px.
-The accepted target of about 120 × 120 units remains visible at normal editor sizes while avoiding the large vertical capsule seen in the initial Hack-derived zero.
+The first dotted-zero experiment used an excessively small round dot and could become faint at 12–16 px. The accepted target of about 120 × 120 units remains visible at normal editor sizes while avoiding the large vertical capsule seen in the initial Hack-derived zero.
 
 Small-size rasterization can make a geometrically centered dot look slightly off-center. The builder therefore keeps the dot at the true geometric center rather than adding an optical left/right offset that would become visible at larger sizes.
 
+## Bold
+
+Bold starts with the **same optical correction values as Regular** rather than guessing separate values in advance:
+
+- Latin +3%
+- dotted zero 120 × 120
+- quotes +10%
+- `. , : ;` +8% with the same vertical corrections
+- visible U+3000 marker with 60-unit dots
+
+The first generated Bold passes structural validation and visually tracks Regular well at 14, 16 and 42 px. The current decision is therefore to keep the shared values unless Windows/VS Code testing reveals a weight-specific problem.
+
+The generated files form one Windows font family:
+
+- `Composite Code JP Prototype V3` / Regular / OS/2 weight 400
+- `Composite Code JP Prototype V3` / Bold / OS/2 weight 700
+
 ## OpenType features
 
-Iosevka character-variant and Latin ligature features are disabled in the prototype so that enabling an old Sarasa/Iosevka feature cannot replace the new default Hack glyphs with Iosevka alternates.
-The optional OpenType `zero` feature is also disabled because the desired dotted zero is baked into the default U+0030 glyph.
+Iosevka character-variant and Latin ligature features are disabled in the prototype so that enabling an old Sarasa/Iosevka feature cannot replace the new default Hack glyphs with Iosevka alternates. The optional OpenType `zero` feature is also disabled because the desired dotted zero is baked into the default U+0030 glyph.
 
 CJK-specific features such as `locl` and `vert` are left intact.
 
@@ -93,27 +106,29 @@ GitHub Actions workflow:
 
 - `.github/workflows/build-composite-prototype.yml`
 
-Builder:
+Tools:
 
 - `tools/composite-prototype/build.mjs`
+- `tools/composite-prototype/retag-style.mjs`
 
 The workflow downloads pinned inputs:
 
-- Sarasa Mono J 1.0.41, unhinted Regular
-- Hack 3.003 Regular
+- Sarasa Mono J 1.0.41, unhinted Regular and Bold
+- Hack 3.003 Regular and Bold
 
-and uploads an artifact containing:
+and uploads one family artifact containing:
 
 - `CompositeCodeJPProtoV3-Regular.ttf`
+- `CompositeCodeJPProtoV3-Bold.ttf`
 - Sarasa license
 - Hack license
 - provenance notes
 
 ## Evaluation sequence
 
-Check the generated Regular font in this order:
+Check the generated family in this order:
 
-1. VS Code editor
+1. VS Code editor — Regular and Bold
 2. Windows Terminal
 3. PuTTY
 4. VS Code integrated terminal
@@ -130,6 +145,7 @@ fullwidth-space:[　]
 A　B　C
 Config設定123 = "日本語テスト";
 日本語　ABC　123　設定
+key="value"; path=`test`;
 ```
 
 Evaluate:
@@ -140,13 +156,14 @@ Evaluate:
 - Latin visual size relative to Japanese
 - quote and punctuation visibility
 - U+3000 marker visibility without excessive visual weight
+- Regular/Bold weight transition and family pairing
 - baseline
 - 1:2 alignment in terminal applications
 
-## Next steps after Regular approval
+## Next steps
 
-1. Validate the v3 Regular on Windows rendering (VS Code, Windows Terminal, PuTTY).
-2. Add Bold with equivalent optical tuning, adjusted only if Bold needs a different value.
+1. Validate Bold on Windows/VS Code using the same family name.
+2. Validate Regular/Bold in Windows Terminal and PuTTY.
 3. Decide the final family name.
 4. Add a terminal-oriented variant if needed.
 5. Add hinting after the core glyph geometry is stable.
@@ -156,5 +173,4 @@ Evaluate:
 
 `Polaris Code JP` was considered as a working name but is not recommended as the final public name because multiple existing typefaces already use **Polaris**.
 
-The generated v3 font uses `Composite Code JP Prototype V3` as an evaluation-only internal family name so it can coexist with prior prototypes without a Windows font-cache collision.
-The final name should be chosen only after the Regular prototype is visually accepted.
+The generated v3 family uses `Composite Code JP Prototype V3` as an evaluation-only internal family name so it can coexist with prior prototypes without a Windows font-cache collision. The final name should be chosen only after the Regular/Bold prototype is visually accepted.
