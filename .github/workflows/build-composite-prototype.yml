@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .prototype/downloads .prototype/sarasa .prototype/hack .prototype/out
+          mkdir -p .prototype/downloads .prototype/sarasa .prototype/hack .prototype/tmp .prototype/out
           curl --fail --location --retry 3 \
             --output .prototype/downloads/SarasaMonoJ-TTF-Unhinted-1.0.41.7z \
             https://github.com/be5invis/Sarasa-Gothic/releases/download/v1.0.41/SarasaMonoJ-TTF-Unhinted-1.0.41.7z
@@ -50,25 +50,45 @@ jobs:
             --output .prototype/hack/Hack-Regular.ttf \
             https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-Regular.ttf
           curl --fail --location --retry 3 \
+            --output .prototype/hack/Hack-Bold.ttf \
+            https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-Bold.ttf
+          curl --fail --location --retry 3 \
             --output .prototype/out/LICENSE-Hack.md \
             https://raw.githubusercontent.com/source-foundry/Hack/v3.003/LICENSE.md
           cp LICENSE .prototype/out/LICENSE-Sarasa.txt
 
-      - name: Locate Sarasa Regular
+      - name: Locate Sarasa Regular and Bold
         id: sarasa
         shell: bash
         run: |
           set -euo pipefail
-          file="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Regular.ttf' -print -quit)"
-          test -n "$file"
-          echo "file=$file" >> "$GITHUB_OUTPUT"
+          regular="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Regular.ttf' -print -quit)"
+          bold="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Bold.ttf' -print -quit)"
+          test -n "$regular"
+          test -n "$bold"
+          echo "regular=$regular" >> "$GITHUB_OUTPUT"
+          echo "bold=$bold" >> "$GITHUB_OUTPUT"
 
       - name: Build prototype Regular v3
         run: |
           node tools/composite-prototype/build.mjs \
-            --sarasa "${{ steps.sarasa.outputs.file }}" \
+            --sarasa "${{ steps.sarasa.outputs.regular }}" \
             --hack .prototype/hack/Hack-Regular.ttf \
             --output .prototype/out/CompositeCodeJPProtoV3-Regular.ttf
+
+      - name: Build prototype Bold geometry v3
+        run: |
+          node tools/composite-prototype/build.mjs \
+            --sarasa "${{ steps.sarasa.outputs.bold }}" \
+            --hack .prototype/hack/Hack-Bold.ttf \
+            --output .prototype/tmp/CompositeCodeJPProtoV3-Bold-as-Regular.ttf
+
+      - name: Retag Bold style
+        run: |
+          node tools/composite-prototype/retag-style.mjs \
+            --input .prototype/tmp/CompositeCodeJPProtoV3-Bold-as-Regular.ttf \
+            --output .prototype/out/CompositeCodeJPProtoV3-Bold.ttf \
+            --style Bold
 
       - name: Write provenance
         shell: bash
@@ -78,8 +98,11 @@ jobs:
 
           Temporary internal family name for evaluation only; not the final product name.
 
-          - CJK/base: Sarasa Mono J 1.0.41, unhinted Regular
-          - Basic Latin donor: Hack 3.003 Regular
+          Styles in this artifact:
+          - Regular: Sarasa Mono J 1.0.41 unhinted Regular + Hack 3.003 Regular
+          - Bold: Sarasa Mono J 1.0.41 unhinted Bold + Hack 3.003 Bold
+
+          Shared tuning:
           - Replaced range: U+0020..U+007E
           - Cell metric: inherited from Sarasa Mono J and validated at 1:2 half/full width
           - Hack base geometry: HackGen reference scaling (88% X, 97% Y at 540/1024), converted to Sarasa's cell width
@@ -88,16 +111,18 @@ jobs:
           - Quote correction: U+0022, U+0027 and U+0060 enlarged by 10%
           - Punctuation correction: U+002E, U+002C, U+003A and U+003B enlarged by 8%; period/comma/semicolon receive HackGen-reference vertical offsets
           - U+3000 ideographic space: visible dotted rounded-rectangle marker using restrained 60-unit dots
-          - Japanese/CJK glyph outlines otherwise remain from Sarasa Mono J
+          - Japanese/CJK glyph outlines otherwise remain from the corresponding Sarasa Mono J style
           - Iosevka Latin variants/ligatures and OpenType `zero` alternate disabled; CJK features retained
+
+          Bold intentionally starts with the same optical tuning values as Regular so any weight-specific adjustment can be judged from actual rendering rather than guessed in advance.
 
           See repository licenses and LICENSE-Hack.md for licensing notices.
           EOF
 
-      - name: Upload prototype
+      - name: Upload prototype family
         uses: actions/upload-artifact@v4
         with:
-          name: composite-code-jp-prototype-v3-regular
+          name: composite-code-jp-prototype-v3-regular-bold
           path: .prototype/out/
           if-no-files-found: error
           retention-days: 14
