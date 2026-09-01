@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -53,21 +53,33 @@ jobs:
             --output .prototype/hack/Hack-Bold.ttf \
             https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-Bold.ttf
           curl --fail --location --retry 3 \
+            --output .prototype/hack/Hack-Italic.ttf \
+            https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-Italic.ttf
+          curl --fail --location --retry 3 \
+            --output .prototype/hack/Hack-BoldItalic.ttf \
+            https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-BoldItalic.ttf
+          curl --fail --location --retry 3 \
             --output .prototype/out/LICENSE-Hack.md \
             https://raw.githubusercontent.com/source-foundry/Hack/v3.003/LICENSE.md
           cp LICENSE .prototype/out/LICENSE-Sarasa.txt
 
-      - name: Locate Sarasa Regular and Bold
+      - name: Locate Sarasa four styles
         id: sarasa
         shell: bash
         run: |
           set -euo pipefail
           regular="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Regular.ttf' -print -quit)"
           bold="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Bold.ttf' -print -quit)"
+          italic="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Italic.ttf' -print -quit)"
+          bolditalic="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-BoldItalic.ttf' -print -quit)"
           test -n "$regular"
           test -n "$bold"
+          test -n "$italic"
+          test -n "$bolditalic"
           echo "regular=$regular" >> "$GITHUB_OUTPUT"
           echo "bold=$bold" >> "$GITHUB_OUTPUT"
+          echo "italic=$italic" >> "$GITHUB_OUTPUT"
+          echo "bolditalic=$bolditalic" >> "$GITHUB_OUTPUT"
 
       - name: Build prototype Regular v3
         run: |
@@ -90,6 +102,34 @@ jobs:
             --output .prototype/out/CompositeCodeJPProtoV3-Bold.ttf \
             --style Bold
 
+      - name: Build prototype Italic geometry v3
+        run: |
+          node tools/composite-prototype/build.mjs \
+            --sarasa "${{ steps.sarasa.outputs.italic }}" \
+            --hack .prototype/hack/Hack-Italic.ttf \
+            --output .prototype/tmp/CompositeCodeJPProtoV3-Italic-as-Regular.ttf
+
+      - name: Retag Italic style
+        run: |
+          node tools/composite-prototype/retag-style.mjs \
+            --input .prototype/tmp/CompositeCodeJPProtoV3-Italic-as-Regular.ttf \
+            --output .prototype/out/CompositeCodeJPProtoV3-Italic.ttf \
+            --style Italic
+
+      - name: Build prototype Bold Italic geometry v3
+        run: |
+          node tools/composite-prototype/build.mjs \
+            --sarasa "${{ steps.sarasa.outputs.bolditalic }}" \
+            --hack .prototype/hack/Hack-BoldItalic.ttf \
+            --output .prototype/tmp/CompositeCodeJPProtoV3-BoldItalic-as-Regular.ttf
+
+      - name: Retag Bold Italic style
+        run: |
+          node tools/composite-prototype/retag-style.mjs \
+            --input .prototype/tmp/CompositeCodeJPProtoV3-BoldItalic-as-Regular.ttf \
+            --output .prototype/out/CompositeCodeJPProtoV3-BoldItalic.ttf \
+            --style "Bold Italic"
+
       - name: Write provenance
         shell: bash
         run: |
@@ -101,20 +141,22 @@ jobs:
           Styles in this artifact:
           - Regular: Sarasa Mono J 1.0.41 unhinted Regular + Hack 3.003 Regular
           - Bold: Sarasa Mono J 1.0.41 unhinted Bold + Hack 3.003 Bold
+          - Italic: Sarasa Mono J 1.0.41 unhinted Italic + Hack 3.003 Italic
+          - Bold Italic: Sarasa Mono J 1.0.41 unhinted Bold Italic + Hack 3.003 Bold Italic
 
           Shared tuning:
           - Replaced range: U+0020..U+007E
-          - Cell metric: inherited from Sarasa Mono J and validated at 1:2 half/full width
+          - Cell metric: inherited from the corresponding Sarasa Mono J style and validated at 1:2 half/full width
           - Hack base geometry: HackGen reference scaling (88% X, 97% Y at 540/1024), converted to Sarasa's cell width
           - Latin optical scale: +3%, advance widths unchanged
           - Dotted zero: approximately 120 x 120 font units, geometrically centered
           - Quote correction: U+0022, U+0027 and U+0060 enlarged by 10%
           - Punctuation correction: U+002E, U+002C, U+003A and U+003B enlarged by 8%; period/comma/semicolon receive HackGen-reference vertical offsets
           - U+3000 ideographic space: visible dotted rounded-rectangle marker using restrained 60-unit dots
-          - Japanese/CJK glyph outlines otherwise remain from the corresponding Sarasa Mono J style
+          - Japanese/CJK glyph outlines otherwise remain from the corresponding Sarasa Mono J style, including Sarasa Italic/Bold Italic for italic styles
           - Iosevka Latin variants/ligatures and OpenType `zero` alternate disabled; CJK features retained
 
-          Bold intentionally starts with the same optical tuning values as Regular so any weight-specific adjustment can be judged from actual rendering rather than guessed in advance.
+          Bold, Italic and Bold Italic intentionally start with the same optical tuning values as Regular so any style-specific adjustment can be judged from actual rendering rather than guessed in advance.
 
           See repository licenses and LICENSE-Hack.md for licensing notices.
           EOF
@@ -122,7 +164,7 @@ jobs:
       - name: Upload prototype family
         uses: actions/upload-artifact@v4
         with:
-          name: composite-code-jp-prototype-v3-regular-bold
+          name: composite-code-jp-prototype-v3-four-style
           path: .prototype/out/
           if-no-files-found: error
           retention-days: 14
