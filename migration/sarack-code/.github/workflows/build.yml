@@ -1,4 +1,4 @@
-name: Build font prototype
+name: Build Sarack Code
 
 on:
   workflow_dispatch:
@@ -78,7 +78,8 @@ jobs:
             --sarasa "${{ steps.sarasa.outputs.regular }}" \
             --hack .build/hack/Hack-Regular.ttf \
             --style Regular \
-            --output .build/out/CompositeCodeJPProtoV3-Regular.ttf
+            --family "Sarack Code" \
+            --output .build/out/SarackCode-Regular.ttf
 
       - name: Build Bold
         run: |
@@ -86,7 +87,8 @@ jobs:
             --sarasa "${{ steps.sarasa.outputs.bold }}" \
             --hack .build/hack/Hack-Bold.ttf \
             --style Bold \
-            --output .build/out/CompositeCodeJPProtoV3-Bold.ttf
+            --family "Sarack Code" \
+            --output .build/out/SarackCode-Bold.ttf
 
       - name: Build Italic
         run: |
@@ -94,7 +96,8 @@ jobs:
             --sarasa "${{ steps.sarasa.outputs.italic }}" \
             --hack .build/hack/Hack-Italic.ttf \
             --style Italic \
-            --output .build/out/CompositeCodeJPProtoV3-Italic.ttf
+            --family "Sarack Code" \
+            --output .build/out/SarackCode-Italic.ttf
 
       - name: Build Bold Italic
         run: |
@@ -102,12 +105,13 @@ jobs:
             --sarasa "${{ steps.sarasa.outputs.bolditalic }}" \
             --hack .build/hack/Hack-BoldItalic.ttf \
             --style "Bold Italic" \
-            --output .build/out/CompositeCodeJPProtoV3-BoldItalic.ttf
+            --family "Sarack Code" \
+            --output .build/out/SarackCode-BoldItalic.ttf
 
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: prototype-four-style
+          name: sarack-code-four-style-dev
           path: .build/out/
           if-no-files-found: error
           retention-days: 14
