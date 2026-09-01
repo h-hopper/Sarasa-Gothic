@@ -278,14 +278,14 @@ function buildVisibleIdeographicSpace(target, dotSource, cellWidth, upm, targetD
 
 	for (const [centerX, centerY] of centers) {
 		for (const sourceContour of source.contours) {
-			contours.push(
-				sourceContour.map((point) =>
-					Ot.Glyph.Point.create(
-						centerX + (point.x - source.centerX) * scale,
-						centerY + (point.y - source.centerY) * scale,
-						point.kind,
-					),
+			const transformed = sourceContour.map((point) =>
+				Ot.Glyph.Point.create(
+					centerX + (point.x - source.centerX) * scale,
+					centerY + (point.y - source.centerY) * scale,
+					point.kind,
+				),
 			);
+			contours.push(transformed);
 		}
 	}
 
