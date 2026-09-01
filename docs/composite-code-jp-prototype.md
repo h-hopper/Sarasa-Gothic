@@ -11,13 +11,18 @@ Build a Japanese programming font with:
 - HackGen-derived sizing/legibility logic where it materially improves coding use
 - strict half-width : full-width cell ratio of **1:2**
 
-The current milestone contains **Regular and Bold**.
+The current milestone contains **Regular, Bold, Italic, and Bold Italic**.
 
 ## Prototype strategy
 
 The prototype post-processes the official **Sarasa Mono J 1.0.41 unhinted** TTFs rather than rebuilding the complete Sarasa family.
 
-This keeps the Japanese/CJK side unchanged while making the Latin experiment small and reversible. Regular uses Sarasa Mono J Regular + Hack Regular; Bold uses Sarasa Mono J Bold + Hack Bold.
+This keeps the Japanese/CJK side from the matching Sarasa style while making the Latin experiment small and reversible:
+
+- Regular: Sarasa Mono J Regular + Hack Regular
+- Bold: Sarasa Mono J Bold + Hack Bold
+- Italic: Sarasa Mono J Italic + Hack Italic
+- Bold Italic: Sarasa Mono J Bold Italic + Hack Bold Italic
 
 For every Basic Latin glyph U+0020..U+007E:
 
@@ -69,7 +74,7 @@ HackGen uses a dotted rounded rectangle for this purpose. V3 follows that concep
 
 This is a font glyph, not an editor overlay. Therefore the marker can also appear in printed/PDF output when this font is used. For the intended VS Code/terminal use that trade-off is accepted.
 
-No other Japanese glyphs are modified in v3. In particular, dakuten/handakuten, `ー`/`一`, and hiragana/katakana `へ`/`ヘ` stay exactly as Sarasa provides them unless actual legibility problems are observed later.
+No other Japanese glyphs are modified in v3. In particular, dakuten/handakuten, `ー`/`一`, and hiragana/katakana `へ`/`ヘ` stay exactly as the corresponding Sarasa style provides them unless actual legibility problems are observed later.
 
 ## Dotted zero rationale
 
@@ -77,9 +82,9 @@ The first dotted-zero experiment used an excessively small round dot and could b
 
 Small-size rasterization can make a geometrically centered dot look slightly off-center. The builder therefore keeps the dot at the true geometric center rather than adding an optical left/right offset that would become visible at larger sizes.
 
-## Bold
+## Weight and italic styles
 
-Bold starts with the **same optical correction values as Regular** rather than guessing separate values in advance:
+Bold, Italic and Bold Italic start with the **same optical correction values as Regular** rather than guessing separate values in advance:
 
 - Latin +3%
 - dotted zero 120 × 120
@@ -87,12 +92,16 @@ Bold starts with the **same optical correction values as Regular** rather than g
 - `. , : ;` +8% with the same vertical corrections
 - visible U+3000 marker with 60-unit dots
 
-The first generated Bold passes structural validation and visually tracks Regular well at 14, 16 and 42 px. The current decision is therefore to keep the shared values unless Windows/VS Code testing reveals a weight-specific problem.
-
 The generated files form one Windows font family:
 
 - `Composite Code JP Prototype V3` / Regular / OS/2 weight 400
 - `Composite Code JP Prototype V3` / Bold / OS/2 weight 700
+- `Composite Code JP Prototype V3` / Italic / OS/2 weight 400 + italic flag
+- `Composite Code JP Prototype V3` / Bold Italic / OS/2 weight 700 + bold/italic flags
+
+All four generated styles validate at half-width 500 / full-width 1000.
+
+Italic intentionally uses **Sarasa Mono J Italic for Japanese/CJK**, not upright Japanese. Bold Italic likewise uses Sarasa Mono J Bold Italic. Upright-Japanese italics remain only a fallback experiment if actual VS Code use shows the slanted Japanese to be less readable.
 
 ## OpenType features
 
@@ -113,13 +122,15 @@ Tools:
 
 The workflow downloads pinned inputs:
 
-- Sarasa Mono J 1.0.41, unhinted Regular and Bold
-- Hack 3.003 Regular and Bold
+- Sarasa Mono J 1.0.41, unhinted Regular/Bold/Italic/Bold Italic
+- Hack 3.003 Regular/Bold/Italic/Bold Italic
 
 and uploads one family artifact containing:
 
 - `CompositeCodeJPProtoV3-Regular.ttf`
 - `CompositeCodeJPProtoV3-Bold.ttf`
+- `CompositeCodeJPProtoV3-Italic.ttf`
+- `CompositeCodeJPProtoV3-BoldItalic.ttf`
 - Sarasa license
 - Hack license
 - provenance notes
@@ -128,7 +139,7 @@ and uploads one family artifact containing:
 
 Check the generated family in this order:
 
-1. VS Code editor — Regular and Bold
+1. VS Code editor — all four styles
 2. Windows Terminal
 3. PuTTY
 4. VS Code integrated terminal
@@ -136,13 +147,14 @@ Check the generated family in this order:
 Suggested text:
 
 ```text
-0 O o Q    1 I l |
+0 O o Q    1 I l |    f i j l
 00000000 O0O0O0O0
 "double" 'single' `backtick`
 .... ,,,, :::: ;;;;
 ASCII-space:[ ]
 fullwidth-space:[　]
 A　B　C
+// 日本語コメント abc123 Config設定
 Config設定123 = "日本語テスト";
 日本語　ABC　123　設定
 key="value"; path=`test`;
@@ -157,13 +169,14 @@ Evaluate:
 - quote and punctuation visibility
 - U+3000 marker visibility without excessive visual weight
 - Regular/Bold weight transition and family pairing
+- Italic/Bold Italic slant and Japanese/Latin mixed-text balance
 - baseline
 - 1:2 alignment in terminal applications
 
 ## Next steps
 
-1. Validate Bold on Windows/VS Code using the same family name.
-2. Validate Regular/Bold in Windows Terminal and PuTTY.
+1. Validate Italic and Bold Italic on Windows/VS Code.
+2. Validate the four-style family in Windows Terminal and PuTTY.
 3. Decide the final family name.
 4. Add a terminal-oriented variant if needed.
 5. Add hinting after the core glyph geometry is stable.
@@ -173,4 +186,4 @@ Evaluate:
 
 `Polaris Code JP` was considered as a working name but is not recommended as the final public name because multiple existing typefaces already use **Polaris**.
 
-The generated v3 family uses `Composite Code JP Prototype V3` as an evaluation-only internal family name so it can coexist with prior prototypes without a Windows font-cache collision. The final name should be chosen only after the Regular/Bold prototype is visually accepted.
+The generated v3 family uses `Composite Code JP Prototype V3` as an evaluation-only internal family name so it can coexist with prior prototypes without a Windows font-cache collision. The final name should be chosen only after the four-style prototype is visually accepted.
