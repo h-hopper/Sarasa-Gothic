@@ -1,0 +1,8 @@
+.build/
+out/
+*.ttf
+*.otf
+*.7z
+*.zip
+__pycache__/
+*.pyc
