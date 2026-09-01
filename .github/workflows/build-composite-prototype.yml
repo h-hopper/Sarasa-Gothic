@@ -1,0 +1,96 @@
+name: Build composite font prototype
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/polaris-code-jp
+    paths:
+      - "tools/composite-prototype/**"
+      - ".github/workflows/build-composite-prototype.yml"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Fetch pinned font inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .prototype/downloads .prototype/sarasa .prototype/hack .prototype/out
+          curl --fail --location --retry 3 \
+            --output .prototype/downloads/SarasaMonoJ-TTF-Unhinted-1.0.41.7z \
+            https://github.com/be5invis/Sarasa-Gothic/releases/download/v1.0.41/SarasaMonoJ-TTF-Unhinted-1.0.41.7z
+          7z x -y \
+            .prototype/downloads/SarasaMonoJ-TTF-Unhinted-1.0.41.7z \
+            -o.prototype/sarasa
+          curl --fail --location --retry 3 \
+            --output .prototype/hack/Hack-Regular.ttf \
+            https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-Regular.ttf
+          curl --fail --location --retry 3 \
+            --output .prototype/out/LICENSE-Hack.md \
+            https://raw.githubusercontent.com/source-foundry/Hack/v3.003/LICENSE.md
+          cp LICENSE .prototype/out/LICENSE-Sarasa.txt
+
+      - name: Locate Sarasa Regular
+        id: sarasa
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="$(find .prototype/sarasa -type f -name 'SarasaMonoJ-Regular.ttf' -print -quit)"
+          test -n "$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Build prototype Regular
+        run: |
+          node tools/composite-prototype/build.mjs \
+            --sarasa "${{ steps.sarasa.outputs.file }}" \
+            --hack .prototype/hack/Hack-Regular.ttf \
+            --output .prototype/out/CompositeCodeJPProto-Regular.ttf
+
+      - name: Write provenance
+        shell: bash
+        run: |
+          cat > .prototype/out/PROVENANCE.md <<'EOF'
+          # Composite Code JP Prototype
+
+          Temporary internal family name for evaluation only; not the final product name.
+
+          - CJK/base: Sarasa Mono J 1.0.41, unhinted Regular
+          - Basic Latin donor: Hack 3.003 Regular
+          - Replaced range: U+0020..U+007E
+          - Cell metric: inherited from Sarasa Mono J and validated at 1:2 half/full width
+          - Hack geometry: HackGen reference scaling (88% X, 97% Y at 540/1024), converted to Sarasa's cell width
+
+          See repository licenses and LICENSE-Hack.md for licensing notices.
+          EOF
+
+      - name: Upload prototype
+        uses: actions/upload-artifact@v4
+        with:
+          name: composite-code-jp-prototype-regular
+          path: .prototype/out/
+          if-no-files-found: error
+          retention-days: 14
