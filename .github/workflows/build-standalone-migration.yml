@@ -1,0 +1,107 @@
+name: Validate standalone font builder
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/polaris-code-jp
+    paths:
+      - "migration/sarack-code/**"
+      - ".github/workflows/build-standalone-migration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: migration/sarack-code/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r migration/sarack-code/requirements.txt
+
+      - name: Install 7-Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Fetch pinned upstream font inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .standalone/downloads .standalone/sarasa .standalone/hack .standalone/out
+          curl --fail --location --retry 3 \
+            --output .standalone/downloads/SarasaMonoJ-TTF-Unhinted-1.0.41.7z \
+            https://github.com/be5invis/Sarasa-Gothic/releases/download/v1.0.41/SarasaMonoJ-TTF-Unhinted-1.0.41.7z
+          7z x -y \
+            .standalone/downloads/SarasaMonoJ-TTF-Unhinted-1.0.41.7z \
+            -o.standalone/sarasa
+          for style in Regular Bold Italic BoldItalic; do
+            curl --fail --location --retry 3 \
+              --output ".standalone/hack/Hack-${style}.ttf" \
+              "https://raw.githubusercontent.com/source-foundry/Hack/v3.003/build/ttf/Hack-${style}.ttf"
+          done
+
+      - name: Locate Sarasa four styles
+        id: sarasa
+        shell: bash
+        run: |
+          set -euo pipefail
+          regular="$(find .standalone/sarasa -type f -name 'SarasaMonoJ-Regular.ttf' -print -quit)"
+          bold="$(find .standalone/sarasa -type f -name 'SarasaMonoJ-Bold.ttf' -print -quit)"
+          italic="$(find .standalone/sarasa -type f -name 'SarasaMonoJ-Italic.ttf' -print -quit)"
+          bolditalic="$(find .standalone/sarasa -type f -name 'SarasaMonoJ-BoldItalic.ttf' -print -quit)"
+          test -n "$regular" && test -n "$bold" && test -n "$italic" && test -n "$bolditalic"
+          echo "regular=$regular" >> "$GITHUB_OUTPUT"
+          echo "bold=$bold" >> "$GITHUB_OUTPUT"
+          echo "italic=$italic" >> "$GITHUB_OUTPUT"
+          echo "bolditalic=$bolditalic" >> "$GITHUB_OUTPUT"
+
+      - name: Build Regular
+        run: |
+          python migration/sarack-code/build.py \
+            --sarasa "${{ steps.sarasa.outputs.regular }}" \
+            --hack .standalone/hack/Hack-Regular.ttf \
+            --style Regular \
+            --output .standalone/out/CompositeCodeJPProtoV3-Regular.ttf
+
+      - name: Build Bold
+        run: |
+          python migration/sarack-code/build.py \
+            --sarasa "${{ steps.sarasa.outputs.bold }}" \
+            --hack .standalone/hack/Hack-Bold.ttf \
+            --style Bold \
+            --output .standalone/out/CompositeCodeJPProtoV3-Bold.ttf
+
+      - name: Build Italic
+        run: |
+          python migration/sarack-code/build.py \
+            --sarasa "${{ steps.sarasa.outputs.italic }}" \
+            --hack .standalone/hack/Hack-Italic.ttf \
+            --style Italic \
+            --output .standalone/out/CompositeCodeJPProtoV3-Italic.ttf
+
+      - name: Build Bold Italic
+        run: |
+          python migration/sarack-code/build.py \
+            --sarasa "${{ steps.sarasa.outputs.bolditalic }}" \
+            --hack .standalone/hack/Hack-BoldItalic.ttf \
+            --style "Bold Italic" \
+            --output .standalone/out/CompositeCodeJPProtoV3-BoldItalic.ttf
+
+      - name: Upload standalone build
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-prototype-four-style
+          path: .standalone/out/
+          if-no-files-found: error
+          retention-days: 14
