@@ -7,6 +7,7 @@ import { setFontMetadata } from "../../make/pass1/metadata.mjs";
 
 const PROTOTYPE_FAMILY = "Composite Code JP Prototype V3";
 const PROTOTYPE_VERSION = "0.0.3-prototype";
+const SUPPORTED_STYLES = new Set(["Regular", "Bold", "Italic", "Bold Italic"]);
 const COPYRIGHT =
 	"Copyright (c) 2015-2025, Renzhi Li (aka. Belleve Invis). " +
 	"Portions Copyright (c) 2014-2021 Adobe Systems Incorporated. " +
@@ -23,10 +24,10 @@ const { values } = parseArgs({
 
 if (!values.input || !values.output || !values.style) {
 	throw new Error(
-		"Usage: node tools/composite-prototype/retag-style.mjs --input input.ttf --output output.ttf --style Bold",
+		"Usage: node tools/composite-prototype/retag-style.mjs --input input.ttf --output output.ttf --style 'Bold Italic'",
 	);
 }
-if (!new Set(["Regular", "Bold"]).has(values.style)) {
+if (!SUPPORTED_STYLES.has(values.style)) {
 	throw new Error(`Unsupported style: ${values.style}`);
 }
 
@@ -58,10 +59,26 @@ await fs.mkdir(path.dirname(outputPath), { recursive: true });
 await writeFont(outputPath, font);
 
 const check = await readFont(outputPath);
-const expectedWeight = values.style === "Bold" ? 700 : 400;
+const expectedBold = values.style.includes("Bold");
+const expectedItalic = values.style.includes("Italic");
+const expectedWeight = expectedBold ? 700 : 400;
 if (check.os2.usWeightClass !== expectedWeight) {
 	throw new Error(
 		`Unexpected OS/2 weight after retagging ${values.style}: ${check.os2.usWeightClass}, expected ${expectedWeight}`,
+	);
+}
+
+// OpenType OS/2.fsSelection: bit 0 = ITALIC, bit 5 = BOLD.
+const hasItalicBit = Boolean(check.os2.fsSelection & 0x01);
+const hasBoldBit = Boolean(check.os2.fsSelection & 0x20);
+if (hasItalicBit !== expectedItalic) {
+	throw new Error(
+		`Unexpected OS/2 italic flag after retagging ${values.style}: ${hasItalicBit}, expected ${expectedItalic}`,
+	);
+}
+if (hasBoldBit !== expectedBold) {
+	throw new Error(
+		`Unexpected OS/2 bold flag after retagging ${values.style}: ${hasBoldBit}, expected ${expectedBold}`,
 	);
 }
 
@@ -69,3 +86,4 @@ console.log(`Retagged ${inputPath} -> ${outputPath}`);
 console.log(`Family: ${PROTOTYPE_FAMILY}`);
 console.log(`Style: ${values.style}`);
 console.log(`OS/2 weight: ${check.os2.usWeightClass}`);
+console.log(`OS/2 flags: italic=${hasItalicBit}, bold=${hasBoldBit}`);
